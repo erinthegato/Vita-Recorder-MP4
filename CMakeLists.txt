@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   if(DEFINED ENV{VITASDK})
@@ -8,52 +8,37 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   endif()
 endif()
 
-project(VitaRecorder)
+project(VitaRecorder C)
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O3 -std=gnu99 -DTAIPOOL_AS_STDLIB")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fno-rtti -fno-exceptions")
-
-include_directories(
-)
-
-link_directories(
-  ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-if (NOT ${RELEASE})
-  add_definitions(-DENABLE_LOGGING)
-endif()
+# No libc / heap: everything uses the system's built-in sceClib* functions and memblocks
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-q -Wall -O2 -std=gnu11 -fno-builtin-printf -nostdlib")
 
 add_executable(VitaRecorder
   main.c
   renderer.c
   encoder.c
   rescaler.c
+  mp4.c
+  libc_shim.c
 )
 
 target_link_libraries(VitaRecorder
-  taipool
   taihen_stub
-  SceLibKernel_stub_weak
-  SceDisplay_stub_weak
-  SceSysmem_stub_weak
-  jpeg
-  k
-  gcc
-  SceIofilemgr_stub_weak
+  SceLibKernel_stub
   SceKernelThreadMgr_stub
-  SceSysmodule_stub_weak
-  ScePower_stub_weak
+  SceIofilemgr_stub
+  SceSysmem_stub
+  SceDisplay_stub
+  SceCtrl_stub
+  SceRtc_stub
+  SceAppMgr_stub
   SceJpegEnc_stub_weak
-  SceAppMgr_stub_weak
-  SceCtrl_stub_weak
-  SceRtc_stub_weak
+  ScePower_stub_weak
+  gcc
 )
 
-set_target_properties(VitaRecorder
-  PROPERTIES LINK_FLAGS "-nostdlib"
-)
+set_target_properties(VitaRecorder PROPERTIES LINK_FLAGS "-nostdlib")
 
 vita_create_self(VitaRecorder.suprx VitaRecorder
   CONFIG ${CMAKE_SOURCE_DIR}/VitaRecorder.yml

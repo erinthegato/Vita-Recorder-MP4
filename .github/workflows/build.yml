@@ -1,0 +1,49 @@
+# Builds VitaRecorder.suprx on GitHub's computers, so you don't need VitaSDK installed.
+#
+# - Every push: builds the plugin. Download it from the Actions tab (under "Artifacts").
+# - Pushing a tag like v0.2: also creates a GitHub Release with the .suprx attached.
+
+name: Build VitaRecorder
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: vitasdk/vitasdk:latest
+
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v5
+
+      - name: Install build tools
+        run: |
+          command -v cmake >/dev/null && command -v make >/dev/null || apk add --no-cache cmake make
+          [ -f "$VITASDK/include/taihen.h" ] || vdpm taihen
+
+      - name: Build VitaRecorder.suprx
+        run: |
+          cmake -S . -B build
+          cmake --build build -j"$(nproc)"
+          ls -la build/VitaRecorder.suprx
+
+      - name: Save the .suprx for download
+        uses: actions/upload-artifact@v5
+        with:
+          name: VitaRecorder-suprx
+          path: build/VitaRecorder.suprx
+          if-no-files-found: error
+
+      - name: Attach the .suprx to a Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/VitaRecorder.suprx
